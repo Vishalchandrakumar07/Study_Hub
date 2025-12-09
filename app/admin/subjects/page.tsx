@@ -30,16 +30,18 @@ interface Semester {
   year_id: number
 }
 
-interface Subject {
-  id: number
-  code: string
-  name: string
-  credits: number | null
-  category_id: number
-  department_id: number
-  year_id: number
-  semester_id: number
+interface SubjectForm {
+  code: string;
+  name: string;
+  credits: string;
+  category_id: string;
+  department_id: string;
+  year_id: string;
+  semester_id: string;
+  description?: string | null;  // ✅ add this
 }
+
+
 
 export default function SubjectsPage() {
   const [subjects, setSubjects] = useState<Subject[]>([])
