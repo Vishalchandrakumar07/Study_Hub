@@ -59,15 +59,17 @@ export default function SubjectsPage() {
   const [selectedYear, setSelectedYear] = useState<number | "">("")
   const [selectedSemester, setSelectedSemester] = useState<number | "">("")
 
-  const [newSubject, setNewSubject] = useState({
-    code: "",
-    name: "",
-    credits: "",
-    category_id: "",
-    department_id: "",
-    year_id: "",
-    semester_id: "",
-  })
+  const [newSubject, setNewSubject] = useState<NewSubjectForm>({
+  code: "",
+  name: "",
+  credits: "",
+  category_id: "",
+  department_id: "",
+  year_id: "",
+  semester_id: "",
+  description: ""    // <-- ADD THIS
+})
+
 
   const supabase = createClient()
 
