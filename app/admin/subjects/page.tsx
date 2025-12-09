@@ -30,15 +30,16 @@ interface Semester {
   year_id: number
 }
 
-interface SubjectForm {
-  code: string;
-  name: string;
-  credits: string;
-  category_id: string;
-  department_id: string;
-  year_id: string;
-  semester_id: string;
-  description?: string | null;  // ✅ add this
+interface Subject {
+  id: number
+  code: string
+  name: string
+  credits: string
+  category_id: number
+  department_id: number
+  year_id: number
+  semester_id: number
+  description?: string | null  // add if you use description
 }
 
 
