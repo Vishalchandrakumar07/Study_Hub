@@ -1,42 +1,26 @@
-import { getDb, initializeDatabase } from "@/lib/db"
-import crypto from "crypto"
+import { NextResponse } from "next/server";
 
-export async function POST(request: Request) {
-  try {
-    const { email, password } = await request.json()
+export async function POST(req: Request) {
+  const { email, password } = await req.json();
 
-    // Initialize database on first run
-    initializeDatabase()
-    const db = getDb()
+  // Validate with .env credentials
+  if (
+    email === process.env.NEXT_PUBLIC_ADMIN_EMAIL &&
+    password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD
+  ) {
+    const res = NextResponse.json({ success: true });
 
-    // For demo purposes, create admin if doesn't exist
-    const existingAdmin = db.prepare("SELECT * FROM admins WHERE email = ?").get(email) as any
+    // Create admin-auth cookie
+    res.cookies.set("admin-auth", "true", {
+      path: "/",
+      httpOnly: false, // client-side login
+    });
 
-    if (!existingAdmin) {
-      // Create demo admin with demo credentials
-      if (email === "admin@college.edu" && password === "admin123") {
-        const hashedPassword = crypto.createHash("sha256").update(password).digest("hex")
-        db.prepare("INSERT INTO admins (email, password_hash) VALUES (?, ?)").run(email, hashedPassword)
-      } else {
-        return Response.json({ message: "Invalid credentials" }, { status: 401 })
-      }
-    } else {
-      // Verify password
-      const hashedPassword = crypto.createHash("sha256").update(password).digest("hex")
-      if (existingAdmin.password_hash !== hashedPassword) {
-        return Response.json({ message: "Invalid credentials" }, { status: 401 })
-      }
-    }
-
-    // Generate a simple token (in production, use JWT)
-    const token = crypto.randomBytes(32).toString("hex")
-
-    return Response.json({
-      message: "Login successful",
-      token,
-      admin: { email },
-    })
-  } catch (error) {
-    return Response.json({ message: "An error occurred" }, { status: 500 })
+    return res;
   }
+
+  return NextResponse.json(
+    { error: "Invalid credentials" },
+    { status: 401 }
+  );
 }
