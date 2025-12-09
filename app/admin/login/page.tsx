@@ -9,16 +9,16 @@ export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  function handleLogin(e) {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (validateAdminLogin(email, password)) {
-      localStorage.setItem("admin-auth", "true");
+      document.cookie = "admin-auth=true; path=/";
       router.push("/admin/dashboard");
     } else {
       alert("Invalid admin credentials");
     }
-  }
+  };
 
   return (
     <div style={{ padding: 40 }}>
@@ -29,14 +29,14 @@ export default function AdminLoginPage() {
           type="email"
           placeholder="Admin Email"
           value={email}
-          onChange={(e)=>setEmail(e.target.value)}
+          onChange={(e) => setEmail(e.target.value)}
         /><br/>
 
         <input
           type="password"
           placeholder="Password"
           value={password}
-          onChange={(e)=>setPassword(e.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
         /><br/>
 
         <button type="submit">Login</button>
