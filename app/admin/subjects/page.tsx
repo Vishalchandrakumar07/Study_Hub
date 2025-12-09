@@ -39,10 +39,20 @@ interface Subject {
   department_id: number
   year_id: number
   semester_id: number
-  description?: string | null  // add if you use description
+  description?: string | null
 }
 
-
+/* ✅ FIX: ADD THIS */
+interface NewSubjectForm {
+  code: string
+  name: string
+  credits: string
+  category_id: string | number
+  department_id: string | number
+  year_id: string | number
+  semester_id: string | number
+  description?: string | null
+}
 
 export default function SubjectsPage() {
   const [subjects, setSubjects] = useState<Subject[]>([])
@@ -59,17 +69,17 @@ export default function SubjectsPage() {
   const [selectedYear, setSelectedYear] = useState<number | "">("")
   const [selectedSemester, setSelectedSemester] = useState<number | "">("")
 
+  /* ✅ FIX: newSubject uses NewSubjectForm */
   const [newSubject, setNewSubject] = useState<NewSubjectForm>({
-  code: "",
-  name: "",
-  credits: "",
-  category_id: "",
-  department_id: "",
-  year_id: "",
-  semester_id: "",
-  description: ""    // <-- ADD THIS
-})
-
+    code: "",
+    name: "",
+    credits: "",
+    category_id: "",
+    department_id: "",
+    year_id: "",
+    semester_id: "",
+    description: ""
+  })
 
   const supabase = createClient()
 
@@ -129,20 +139,21 @@ export default function SubjectsPage() {
 
     try {
       const { error } = await supabase.from("subjects").insert([
-          {
-            code: newSubject.code,
-            name: newSubject.name,
-            credits: newSubject.credits ? Number(newSubject.credits) : null,
-            category_id: Number(selectedCategory),
-            department_id: Number(selectedDepartment),
-            year_id: Number(selectedYear),
-            semester_id: Number(selectedSemester),
-            description: newSubject.description || null   // ✅ ADD THIS
-          }
-        ])
-
+        {
+          code: newSubject.code,
+          name: newSubject.name,
+          credits: newSubject.credits ? Number(newSubject.credits) : null,
+          category_id: Number(selectedCategory),
+          department_id: Number(selectedDepartment),
+          year_id: Number(selectedYear),
+          semester_id: Number(selectedSemester),
+          description: newSubject.description || null
+        }
+      ])
 
       if (error) throw error
+
+      /* RESET FORM */
       setNewSubject({
         code: "",
         name: "",
@@ -151,7 +162,9 @@ export default function SubjectsPage() {
         department_id: "",
         year_id: "",
         semester_id: "",
+        description: ""
       })
+
       setSelectedCategory("")
       setSelectedDepartment("")
       setSelectedYear("")
