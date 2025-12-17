@@ -1,154 +1,212 @@
 "use client"
 
-import type React from "react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Plus, Download, Trash2 } from "lucide-react"
 import { Card } from "@/components/card-component"
 import { createClient } from "@/lib/client"
 
-interface Timetable {
+interface TimetableDocument {
   id: number
   title: string
   description: string | null
-  pdf_url: string | null
+  pdf_url: string
   created_at: string
 }
 
-export default function TimetablePage() {
-  const [timetables, setTimetables] = useState<Timetable[]>([])
+export default function AdminTimetablePage() {
+  const supabase = createClient()
+
+  const [timetables, setTimetables] = useState<TimetableDocument[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+
   const [newTimetable, setNewTimetable] = useState({
     title: "",
     description: "",
     pdf_file: null as File | null,
   })
-  const [showForm, setShowForm] = useState(false)
-  const supabase = createClient()
+
+  /* -------------------------------- fetch -------------------------------- */
+
+  const fetchTimetables = async () => {
+    setLoading(true)
+
+    const { data, error } = await supabase
+      .from("timetable_documents")
+      .select("id, title, description, pdf_url, created_at")
+      .order("created_at", { ascending: false })
+
+    if (error) {
+      console.error("Fetch error:", error)
+    } else {
+      setTimetables(data || [])
+    }
+
+    setLoading(false)
+  }
 
   useEffect(() => {
     fetchTimetables()
   }, [])
 
-  const fetchTimetables = async () => {
-    try {
-      const { data, error } = await supabase.from("timetables").select("*").order("created_at", { ascending: false })
-
-      if (error) throw error
-      setTimetables(data || [])
-    } catch (error) {
-      console.error("Error fetching timetables:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  /* -------------------------------- insert -------------------------------- */
 
   const handleAddTimetable = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newTimetable.title.trim()) return
+
+    if (!newTimetable.title || !newTimetable.pdf_file) {
+      alert("Title and PDF are required")
+      return
+    }
 
     setUploading(true)
+
     try {
-      let pdfUrl = null
+      /* 1️⃣ Upload PDF */
+      const fileName = `timetables/${Date.now()}-${newTimetable.pdf_file.name}`
 
-      if (newTimetable.pdf_file) {
-        const fileExt = newTimetable.pdf_file.name.split(".").pop()
-        const fileName = `timetable-${Date.now()}.${fileExt}`
+      const { error: uploadError } = await supabase.storage
+        .from("materials")
+        .upload(fileName, newTimetable.pdf_file)
 
-        const { error: uploadError } = await supabase.storage.from("materials").upload(fileName, newTimetable.pdf_file)
-
-        if (uploadError) throw uploadError
-
-        const { data: publicData } = supabase.storage.from("materials").getPublicUrl(fileName)
-        pdfUrl = publicData.publicUrl
+      if (uploadError) {
+        console.error("Upload error:", uploadError)
+        throw uploadError
       }
 
-      const { error } = await supabase.from("timetables").insert([
-        {
-          title: newTimetable.title,
-          description: newTimetable.description,
-          pdf_url: pdfUrl,
-        },
-      ])
+      const { data: publicData } = supabase.storage
+        .from("materials")
+        .getPublicUrl(fileName)
 
-      if (error) throw error
+      const pdfUrl = publicData.publicUrl
+
+      /* 2️⃣ Insert DB row */
+      const { error: insertError } = await supabase
+        .from("timetable_documents")
+        .insert([
+          {
+            title: newTimetable.title,
+            description: newTimetable.description || null,
+            pdf_url: pdfUrl,
+          },
+        ])
+
+      if (insertError) {
+        console.error("Supabase insert error:", insertError)
+        throw insertError
+      }
+
+      /* 3️⃣ Reset */
       setNewTimetable({ title: "", description: "", pdf_file: null })
       setShowForm(false)
       fetchTimetables()
-    } catch (error) {
-      console.error("Error adding timetable:", error)
+    } catch (err) {
+      console.error("Error adding timetable:", err)
+      alert("Failed to add timetable. Check console.")
     } finally {
       setUploading(false)
     }
   }
 
-  const handleDeleteTimetable = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this timetable?")) return
+  /* -------------------------------- delete -------------------------------- */
+
+  const handleDelete = async (doc: TimetableDocument) => {
+    if (!confirm("Delete this timetable?")) return
 
     try {
-      const { error } = await supabase.from("timetables").delete().eq("id", id)
+      // remove file from storage
+      const path = doc.pdf_url.split("/materials/")[1]
+      if (path) {
+        await supabase.storage.from("materials").remove([path])
+      }
+
+      // remove db row
+      const { error } = await supabase
+        .from("timetable_documents")
+        .delete()
+        .eq("id", doc.id)
+
       if (error) throw error
+
       fetchTimetables()
-    } catch (error) {
-      console.error("Error deleting timetable:", error)
+    } catch (err) {
+      console.error("Delete error:", err)
+      alert("Failed to delete timetable")
     }
   }
 
-  if (loading) return <div className="text-center py-8">Loading timetables...</div>
+  /* -------------------------------- render -------------------------------- */
+
+  if (loading) {
+    return <div className="text-center py-8">Loading timetables...</div>
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-foreground">Timetable</h1>
-        <Button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-primary hover:bg-primary/90 flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
+        <h1 className="text-3xl font-bold">Timetable Documents</h1>
+        <Button onClick={() => setShowForm(!showForm)}>
+          <Plus className="h-4 w-4 mr-2" />
           Add Timetable
         </Button>
       </div>
 
-      {/* Add Timetable Form */}
+      {/* Add Form */}
       {showForm && (
         <Card>
           <form onSubmit={handleAddTimetable} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Title</label>
+              <label className="block text-sm mb-1">Title</label>
               <input
-                type="text"
+                className="w-full border rounded px-3 py-2"
                 value={newTimetable.title}
-                onChange={(e) => setNewTimetable({ ...newTimetable, title: e.target.value })}
-                placeholder="e.g., Engineering Department Timetable"
-                className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                onChange={(e) =>
+                  setNewTimetable({ ...newTimetable, title: e.target.value })
+                }
                 required
               />
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Description</label>
+              <label className="block text-sm mb-1">Description</label>
               <textarea
+                className="w-full border rounded px-3 py-2"
                 value={newTimetable.description}
-                onChange={(e) => setNewTimetable({ ...newTimetable, description: e.target.value })}
-                placeholder="Timetable description"
-                className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 min-h-20"
+                onChange={(e) =>
+                  setNewTimetable({
+                    ...newTimetable,
+                    description: e.target.value,
+                  })
+                }
               />
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Upload PDF</label>
+              <label className="block text-sm mb-1">PDF File</label>
               <input
                 type="file"
                 accept=".pdf"
-                onChange={(e) => setNewTimetable({ ...newTimetable, pdf_file: e.target.files?.[0] || null })}
-                className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                onChange={(e) =>
+                  setNewTimetable({
+                    ...newTimetable,
+                    pdf_file: e.target.files?.[0] || null,
+                  })
+                }
+                required
               />
-              {newTimetable.pdf_file && <p className="text-sm text-primary mt-2">File: {newTimetable.pdf_file.name}</p>}
             </div>
+
             <div className="flex gap-2">
-              <Button type="submit" disabled={uploading} className="bg-primary hover:bg-primary/90">
-                {uploading ? "Uploading..." : "Add Timetable"}
+              <Button type="submit" disabled={uploading}>
+                {uploading ? "Uploading..." : "Save"}
               </Button>
-              <Button type="button" variant="outline" onClick={() => setShowForm(false)} className="bg-transparent">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowForm(false)}
+              >
                 Cancel
               </Button>
             </div>
@@ -156,48 +214,44 @@ export default function TimetablePage() {
         </Card>
       )}
 
-      {/* Timetables Table */}
+      {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-border">
-              <th className="text-left py-3 px-4 font-semibold text-foreground">Title</th>
-              <th className="text-left py-3 px-4 font-semibold text-foreground">Date</th>
-              <th className="text-left py-3 px-4 font-semibold text-foreground">Actions</th>
+            <tr className="border-b">
+              <th className="text-left py-2 px-3">Title</th>
+              <th className="text-left py-2 px-3">Date</th>
+              <th className="text-left py-2 px-3">Actions</th>
             </tr>
           </thead>
           <tbody>
             {timetables.length === 0 ? (
               <tr>
-                <td colSpan={3} className="py-4 px-4 text-center text-muted-foreground">
-                  No timetables found. Add one to get started!
+                <td colSpan={3} className="text-center py-4">
+                  No timetables found
                 </td>
               </tr>
             ) : (
-              timetables.map((timetable) => (
-                <tr key={timetable.id} className="border-b border-border hover:bg-secondary/20">
-                  <td className="py-3 px-4 text-foreground">{timetable.title}</td>
-                  <td className="py-3 px-4 text-muted-foreground text-sm">
-                    {new Date(timetable.created_at).toLocaleDateString()}
+              timetables.map((doc) => (
+                <tr key={doc.id} className="border-b">
+                  <td className="py-2 px-3">{doc.title}</td>
+                  <td className="py-2 px-3 text-sm text-muted-foreground">
+                    {new Date(doc.created_at).toLocaleDateString()}
                   </td>
-                  <td className="py-3 px-4">
-                    <div className="flex gap-2">
-                      {timetable.pdf_url && (
-                        <a href={timetable.pdf_url} target="_blank" rel="noopener noreferrer">
-                          <Button size="sm" variant="outline" className="bg-transparent">
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </a>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="bg-transparent text-destructive hover:text-destructive"
-                        onClick={() => handleDeleteTimetable(timetable.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
+                  <td className="py-2 px-3 flex gap-2">
+                    <a href={doc.pdf_url} target="_blank">
+                      <Button size="sm" variant="outline">
+                        <Download className="h-4 w-4" />
                       </Button>
-                    </div>
+                    </a>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive"
+                      onClick={() => handleDelete(doc)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </td>
                 </tr>
               ))

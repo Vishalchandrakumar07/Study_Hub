@@ -155,10 +155,16 @@ export default function SubjectPage({ params }: SubjectPageProps) {
   // ===============================
   // GROUP MATERIALS
   // ===============================
-  const studyMaterials = materials.filter((m) => m.type === "notes")
-  const pyqMaterials = materials.filter((m) => m.type === "pyq")
+  const studyMaterials = materials.filter((m) =>
+  ["notes", "note"].includes(m.type?.toLowerCase())
+)
+  const pyqMaterials = materials.filter((m) =>
+  ["pyq", "paper"].includes(m.type?.toLowerCase())
+)
   const syllabusMaterials = materials.filter((m) => m.type === "syllabus")
-  const modelMaterials = materials.filter((m) => m.type === "model")
+  const modelMaterials = materials.filter((m) =>
+  ["model", "models", "modelpaper"].includes(m.type?.toLowerCase())
+)
 
   const avgRating =
     opinions.length > 0

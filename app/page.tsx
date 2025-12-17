@@ -68,7 +68,7 @@ export default function Home() {
       {/* Hero Section */}
       <HeroSection />
 
-      {/* Quick Search */}
+      {/* Quick Search
       <section className="py-8">
         <div className="relative">
           <div className="flex items-center gap-2 rounded-lg border border-border bg-white px-4 py-3 shadow-sm">
@@ -80,7 +80,7 @@ export default function Home() {
             />
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Browse by Category */}
       <section className="py-12">
